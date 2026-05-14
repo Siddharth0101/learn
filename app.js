@@ -2,6 +2,7 @@ const express = require('express');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit')
+const helmet = require('helmet')
 
 const AppError = require('./utils/appError')
 const tourRouter = require('./routes/tourRoutes');
@@ -11,6 +12,7 @@ const errorController = require('./controllers/errorController')
 const app = express();
 
 // 1) MIDDLEWARES
+app.use(helmet())
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
@@ -23,7 +25,7 @@ const limiter = rateLimit({
 
 app.use('/api', limiter)
 
-app.use(express.json());
+app.use(express.json({ limit: '10kb' }));
 app.use(cookieParser());
 app.use(express.static(`${__dirname}/public`));
 
