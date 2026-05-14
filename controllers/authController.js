@@ -12,11 +12,21 @@ const signToken = (id) => {
     })
 }
 
-const createSendToken = (user, statusCode, res) => {
+const createSendToken = (user, statusCode, req, res) => {
     const token = signToken(user._id);
 
     // Remove password from output
     user.password = undefined;
+
+    const cookieOptions = {
+        expires: new Date(
+            Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
+        ),
+        httpOnly: true
+    };
+    if (req.secure || req.get('x-forwarded-proto') === 'https') cookieOptions.secure = true;
+
+    res.cookie('jwt', token, cookieOptions);
 
     res.status(statusCode).json({
         status: "success",
@@ -37,7 +47,7 @@ exports.signup = catchAsync(async (req, res, next) => {
         role: req.body.role
     })
 
-    createSendToken(newUser, 201, res)
+    createSendToken(newUser, 201, req, res)
 })
 
 exports.login = catchAsync(async (req, res, next) => {
@@ -51,7 +61,7 @@ exports.login = catchAsync(async (req, res, next) => {
         return next(new AppError('Incorrect email or password', 401));
     }
 
-    createSendToken(user, 200, res)
+    createSendToken(user, 200, req, res)
 })
 
 exports.protect = catchAsync(async (req, res, next) => {
@@ -62,6 +72,8 @@ exports.protect = catchAsync(async (req, res, next) => {
         req.headers.authorization.startsWith('Bearer')
     ) {
         token = req.headers.authorization.split(' ')[1];
+    } else if (req.cookies.jwt) {
+        token = req.cookies.jwt;
     }
 
     if (!token) {
@@ -161,7 +173,7 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
 
     await user.save()
 
-    createSendToken(user, 200, res)
+    createSendToken(user, 200, req, res)
 })
 
 exports.updatePassword = catchAsync(async (req, res, next) => {
@@ -176,5 +188,13 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
     user.confirmPassword = req.body.confirmPassword
     await user.save()
 
-    createSendToken(user, 200, res)
+    createSendToken(user, 200, req, res)
 })
+
+exports.logout = (req, res) => {
+    res.cookie('jwt', 'loggedout', {
+        expires: new Date(Date.now() + 10 * 1000),
+        httpOnly: true
+    });
+    res.status(200).json({ status: 'success' });
+};
