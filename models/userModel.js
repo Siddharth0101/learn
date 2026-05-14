@@ -55,9 +55,8 @@ userSchema.pre('save', async function () {
     this.confirmPassword = undefined
 })
 
-userSchema.pre(/^find/, function (next) {
-    this.find({ active: true })
-    next()
+userSchema.pre(/^find/, function () {
+    this.find({ active: { $ne: false } })
 })
 
 userSchema.pre('save', async function () {
